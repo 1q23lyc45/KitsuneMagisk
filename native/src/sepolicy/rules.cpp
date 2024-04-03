@@ -65,6 +65,10 @@ void sepolicy::magisk_rules() {
     // Allow all binder transactions
     allow(ALL, SEPOL_PROC_DOMAIN, "binder", ALL);
 
+    // Allow system server devpts
+    allow("system_server", "untrusted_app_all_devpts", "chr_file","read");
+    allow("system_server", "untrusted_app_all_devpts", "chr_file","write");
+
 #if 0
     // Remove all dontaudit in debug mode
     impl->strip_dontaudit();
