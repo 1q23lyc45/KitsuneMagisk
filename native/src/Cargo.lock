@@ -212,7 +212,7 @@ dependencies = [
 
 [[package]]
 name = "cxx"
-version = "1.0.105"
+version = "1.0.115"
 dependencies = [
  "cc",
  "cxxbridge-flags",
@@ -221,7 +221,7 @@ dependencies = [
 
 [[package]]
 name = "cxx-gen"
-version = "0.7.105"
+version = "0.7.115"
 dependencies = [
  "codespan-reporting",
  "proc-macro2",
@@ -231,11 +231,11 @@ dependencies = [
 
 [[package]]
 name = "cxxbridge-flags"
-version = "1.0.105"
+version = "1.0.115"
 
 [[package]]
 name = "cxxbridge-macro"
-version = "1.0.105"
+version = "1.0.115"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -428,9 +428,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.164"
+version = "0.2.153"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "433bfe06b8c75da9b2e3fbea6e5329ff87748f0b144ef75306e674c3f6f7c13f"
+checksum = "9c198f91728a82281a64e1f4f9eeb25d82cb32a5de251c6bd1b5154d63a8e7bd"
 
 [[package]]
 name = "libm"
