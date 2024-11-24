@@ -32,6 +32,7 @@ void load_kernel_info(BootConfig *config);
 bool check_two_stage();
 const char *backup_init();
 void restore_ramdisk_init();
+int patch_sepol(const char *in, const char *out);
 
 /***************
  * Base classes

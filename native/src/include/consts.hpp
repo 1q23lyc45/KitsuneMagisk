@@ -1,6 +1,10 @@
 #pragma once
 
-#define JAVA_PACKAGE_NAME "com.topjohnwu.magisk"
+#define JAVA_PACKAGE_NAME "io.github.huskydg.magisk"
+// magiskinit will hex patch this constant,
+// appending \0 to prevent the compiler from reusing the string for "1"
+#define RANDOM_SOCKET_NAME  "d30138f2310a9fb9c54a3e0c21f58591\0"
+
 #define ZYGISKLDR       "libzygisk.so"
 #define NBPROP          "ro.dalvik.vm.native.bridge"
 #define SECURE_DIR      "/data/adb"
@@ -13,18 +17,21 @@
 #define INTLROOT      ".magisk"
 #define MIRRDIR       INTLROOT "/mirror"
 #define PREINITMIRR   INTLROOT "/preinit"
-#define BLOCKDIR      INTLROOT "/block"
-#define PREINITDEV    BLOCKDIR "/preinit"
+#define DEVICEDIR     INTLROOT "/device"
+#define PREINITDEV    DEVICEDIR "/preinit"
 #define WORKERDIR     INTLROOT "/worker"
 #define MODULEMNT     INTLROOT "/modules"
 #define BBPATH        INTLROOT "/busybox"
 #define ROOTOVL       INTLROOT "/rootdir"
-#define SHELLPTS      INTLROOT "/pts"
+#define SHELLPTS      DEVICEDIR "/pts"
 #define ROOTMNT       ROOTOVL  "/.mount_list"
 #define SELINUXMOCK   INTLROOT "/selinux"
 #define MAIN_CONFIG   INTLROOT "/config"
-#define MAIN_SOCKET   INTLROOT "/socket"
-#define LOG_PIPE      INTLROOT "/log"
+#define MAIN_SOCKET   DEVICEDIR "/socket"
+#define LOG_PIPE      DEVICEDIR "/log"
+#define EARLYMNT      INTLROOT "/early-mount.d"
+
+#define EARLYMNTNAME  "early-mount.d/v2"
 
 constexpr const char *applet_names[] = { "su", "resetprop", nullptr };
 

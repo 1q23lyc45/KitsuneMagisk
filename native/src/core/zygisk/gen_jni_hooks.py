@@ -77,6 +77,7 @@ jintArray = JArray(jint)
 jstring = JType('jstring', 'Ljava/lang/String;')
 jboolean = JType('jboolean', 'Z')
 jlong = JType('jlong', 'J')
+jlongArray = JArray(jlong)
 void = JType('void', 'V')
 
 class ForkAndSpec(JNIHook):
@@ -95,7 +96,7 @@ class ForkAndSpec(JNIHook):
         for a in self.args:
             if a.set_arg:
                 decl += ind(1) + f'args.{a.name} = &{a.name};'
-        decl += ind(1) + 'ZygiskContext ctx(env, &args);'
+        decl += ind(1) + 'HookContext ctx(env, &args);'
         decl += ind(1) + f'ctx.{self.base_name()}_pre();'
         decl += ind(1) + self.orig_method() + '('
         decl += ind(2) + f'env, clazz, {self.name_list()}'
@@ -210,6 +211,16 @@ server_l = ForkServer('l', [uid, gid, gids, runtime_flags, rlimits,
 server_samsung_q = ForkServer('samsung_q', [uid, gid, gids, runtime_flags, Anon(jint), Anon(jint), rlimits,
     permitted_capabilities, effective_capabilities])
 
+# GrapheneOS Android 14 Support
+
+fas_grapheneos_u = ForkAndSpec('grapheneos_u', [uid, gid, gids, runtime_flags, rlimits, mount_external,
+    se_info, nice_name, fds_to_close, fds_to_ignore, is_child_zygote, instruction_set, app_data_dir, 
+    is_top_app, pkg_data_info_list, whitelisted_data_info_list, mount_data_dirs, mount_storage_dirs, mount_sysprop_overrides, Anon(jlongArray)])
+
+spec_grapheneos_u = SpecApp('grapheneos_u', [uid, gid, gids, runtime_flags, rlimits, mount_external,
+    se_info, nice_name, is_child_zygote, instruction_set, app_data_dir, is_top_app, pkg_data_info_list,
+    whitelisted_data_info_list, mount_data_dirs, mount_storage_dirs, mount_sysprop_overrides, Anon(jlongArray)])
+
 hook_map = {}
 
 def gen_jni_def(clz, methods):
@@ -224,19 +235,58 @@ def gen_jni_def(clz, methods):
             decl += ind(1) + f'return {m.ret.value};'
         decl += ind(0) + '}'
 
-    decl += ind(0) + f'std::array {m.base_name()}_methods = {{'
+    decl += ind(0) + f'const JNINativeMethod {m.base_name()}_methods[] = {{'
     for m in methods:
-        decl += ind(1) + 'JNINativeMethod {'
+        decl += ind(1) + '{'
         decl += ind(2) + f'"{m.base_name()}",'
         decl += ind(2) + f'"{m.jni()}",'
         decl += ind(2) + f'(void *) &{m.name}'
         decl += ind(1) + '},'
     decl += ind(0) + '};'
     decl = ind(0) + f'void *{m.base_name()}_orig = nullptr;' + decl
+    decl += ind(0) + f'constexpr int {m.base_name()}_methods_num = std::size({m.base_name()}_methods);'
     decl += ind(0)
 
     hook_map[clz].append(m.base_name())
 
+    return decl
+
+def gen_jni_hook():
+    decl = ''
+    decl += ind(0) + 'static JNINativeMethod *hookAndSaveJNIMethods(const char *className, const JNINativeMethod *methods, int numMethods) {'
+    decl += ind(1) + 'JNINativeMethod *newMethods = nullptr;'
+    decl += ind(1) + 'int clz_id = -1;'
+    decl += ind(1) + 'int hook_cnt = 0;'
+    decl += ind(1) + 'do {'
+
+    for index, (clz, methods) in enumerate(hook_map.items()):
+        decl += ind(2) + f'if (className == "{clz}"sv) {{'
+        decl += ind(3) + f'clz_id = {index};'
+        decl += ind(3) + f'hook_cnt = {len(methods)};'
+        decl += ind(3) + 'break;'
+        decl += ind(2) + '}'
+
+    decl += ind(1) + '} while (false);'
+
+    decl += ind(1) + 'if (hook_cnt) {'
+    decl += ind(2) + 'newMethods = new JNINativeMethod[numMethods];'
+    decl += ind(2) + 'memcpy(newMethods, methods, sizeof(JNINativeMethod) * numMethods);'
+    decl += ind(1) + '}'
+
+    decl += ind(1) + 'auto &class_map = (*jni_method_map)[className];'
+    decl += ind(1) + 'for (int i = 0; i < numMethods; ++i) {'
+
+    for index, methods in enumerate(hook_map.values()):
+        decl += ind(2) + f'if (hook_cnt && clz_id == {index}) {{'
+        for m in methods:
+            decl += ind(3) + f'HOOK_JNI({m})'
+        decl += ind(2) + '}'
+
+    decl += ind(2) + 'class_map[methods[i].name][methods[i].signature] = methods[i].fnPtr;'
+    decl += ind(1) + '}'
+
+    decl += ind(1) + 'return newMethods;'
+    decl += ind(0) + '}'
     return decl
 
 with open('jni_hooks.hpp', 'w') as f:
@@ -245,13 +295,16 @@ with open('jni_hooks.hpp', 'w') as f:
 
     zygote = 'com/android/internal/os/Zygote'
 
-    methods = [fas_l, fas_o, fas_p, fas_q_alt, fas_r, fas_u, fas_samsung_m, fas_samsung_n, fas_samsung_o, fas_samsung_p]
+    methods = [fas_l, fas_o, fas_p, fas_q_alt, fas_r, fas_u, fas_samsung_m, fas_samsung_n, fas_samsung_o, fas_samsung_p, fas_grapheneos_u]
     f.write(gen_jni_def(zygote, methods))
 
-    methods = [spec_q, spec_q_alt, spec_r, spec_u, spec_samsung_q]
+    methods = [spec_q, spec_q_alt, spec_r, spec_u, spec_samsung_q, spec_grapheneos_u]
     f.write(gen_jni_def(zygote, methods))
 
     methods = [server_l, server_samsung_q]
     f.write(gen_jni_def(zygote, methods))
 
     f.write('\n} // namespace\n')
+
+    f.write(gen_jni_hook())
+    f.write('\n')

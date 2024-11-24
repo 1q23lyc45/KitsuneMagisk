@@ -11,6 +11,7 @@
 
 #include "su.hpp"
 #include "pts.hpp"
+#include "flags.h"
 
 using namespace std;
 
@@ -88,6 +89,11 @@ void su_info::check_db() {
 bool uid_granted_root(int uid) {
     if (uid == AID_ROOT)
         return true;
+
+#if MAGISK_DEBUG
+    if (uid == AID_SHELL)
+        return true;
+#endif
 
     db_settings cfg;
     get_db_settings(cfg);
@@ -456,7 +462,7 @@ void su_daemon_handler(int client, const sock_cred *cred) {
     sigset_t block_set;
     sigemptyset(&block_set);
     sigprocmask(SIG_SETMASK, &block_set, nullptr);
-    if (!ctx.req.context.empty()) {
+    if (!ctx.req.context.empty() && selinux_enabled()) {
         auto f = xopen_file("/proc/self/attr/exec", "we");
         if (f) fprintf(f.get(), "%s", ctx.req.context.data());
     }

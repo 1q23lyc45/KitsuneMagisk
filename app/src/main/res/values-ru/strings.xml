@@ -167,6 +167,14 @@
     <string name="settings_su_reauth_summary">Повторный запрос прав суперпользователя после обновления приложений</string>
     <string name="settings_su_tapjack_title">Защита от перехвата нажатий</string>
     <string name="settings_su_tapjack_summary">Окно запроса прав суперпользователя будет неактивно пока активированы наложения экрана</string>
+    <string name="su_biometric">Режим аутентификации</string>
+    <string name="settings_su_auth_title">Аутентификация пользователя</string>
+    <string name="settings_su_auth_summary">Запрашивать аутентификацию пользователя во время запросов суперпользователя</string>
+    <string name="settings_su_auth_insecure">Метод аутентификации не настроен на устройстве</string>
+    <string name="settings_biometric_system">Системный</string>
+    <string name="settings_biometric_magisk">От Magisk</string>
+    <string name="settings_biometric_disabled">Аутентификация отключена</string>
+    <string name="selinux_context">Контекст SELinux: %s</string>
     <string name="settings_customization">Персонализация</string>
     <string name="setting_add_shortcut_summary">Добавить ярлык на рабочий стол для удобного восприятия приложения после его скрытия</string>
     <string name="settings_doh_title">DNS поверх HTTPS</string>
@@ -238,4 +246,19 @@
     <string name="reboot_apply_change">Перезагрузите устройство для применения изменений</string>
     <string name="restore_app_confirmation">Это действие восстановит пересобранное для скрытия приложение к исходному состоянию. Вы действительно хотите продолжить?</string>
 
+    <!-- Delta -->
+    <string name="direct_install_system">Прямая установка (модифицировать /system напрямую)</string>
+    <string name="settings_hidelist_config_title">Настроить MagiskHide</string>
+    <string name="settings_hidelist_config_summary">Выберите процессы, которые будут включены в список MagiskHide</string>
+    <string name="settings_magiskhide_title">MagiskHide</string>
+    <string name="settings_magiskhide_summary">Magisk не действует для процессов в списке MagiskHide</string>
+    <string name="settings_sulist_title">Использовать SUList</string>
+    <string name="settings_sulist">SUList</string>
+    <string name="settings_sulist_summary">Только процессы из SUList могут получать root-доступ от Magisk</string>
+    <string name="settings_sulist_config_title">Настроить SUList</string>
+    <string name="settings_sulist_config_summary">Выберите процессы, которые должны быть включены в SUList</string>
+    <string name="settings_sulist_enforced">SUList включен</string>
+    <string name="settings_sulist_error_magiskhide">Эта функция требует включения MagiskHide</string>
+    <string name="home_notice_unofficial_magisk">ВНИМАНИЕ! Вы используете неофициальную версию Magisk, которая официально не поддерживается автором Magisk. Эта версия может содержать нестабильные модификации, которые могут нанести вред вашему устройству или поставить под угрозу вашу безопасность. Не сообщайте о проблемах и не обращайтесь за помощью в официальные каналы Magisk. Если вы используете эту версию, но не знаете, что это неофициальная версия, перейдите на официальный Magisk по адресу github.com/topjohnwu/Magisk</string>
+    
 </resources>

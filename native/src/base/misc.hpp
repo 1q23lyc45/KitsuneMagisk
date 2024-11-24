@@ -332,6 +332,9 @@ constexpr auto operator+(T e) noexcept ->
     return static_cast<std::underlying_type_t<T>>(e);
 }
 
+std::mt19937_64 &get_rand(const void *seed_buf = nullptr);
+int gen_rand_str(char *buf, int len, bool varlen = true);
+
 namespace rust {
 
 struct Utf8CStr {

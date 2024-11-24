@@ -40,3 +40,9 @@
 [submodule "termux-elf-cleaner"]
 	path = tools/termux-elf-cleaner
 	url = https://github.com/termux/termux-elf-cleaner.git
+[submodule "parallel-hashmap"]
+	path = native/src/external/parallel-hashmap
+	url = https://github.com/greg7mdp/parallel-hashmap.git
+[submodule "native/src/external/_xDL"]
+	path = native/src/external/_xDL
+	url = https://github.com/hexhacking/xDL.git

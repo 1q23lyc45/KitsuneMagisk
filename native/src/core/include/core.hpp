@@ -30,6 +30,7 @@ enum class RespondCode : int {
 
 struct module_info {
     std::string name;
+    std::string buf;
     int z32 = -1;
 #if defined(__LP64__)
     int z64 = -1;
@@ -37,8 +38,14 @@ struct module_info {
 };
 
 extern bool zygisk_enabled;
+extern bool sulist_enabled;
+extern bool stop_trace_zygote;
 extern std::vector<module_info> *module_list;
 extern std::string native_bridge;
+
+extern int magisktmpfs_fd;
+extern int su_bin_fd;
+extern bool HAVE_32;
 
 void reset_zygisk(bool restore);
 int connect_daemon(int req, bool create = false);
@@ -91,5 +98,23 @@ extern std::atomic_flag skip_pkg_rescan;
 extern std::atomic<bool> denylist_enforced;
 int denylist_cli(int argc, char **argv);
 void initialize_denylist();
-bool is_deny_target(int uid, std::string_view process);
-void revert_unmount();
+bool is_deny_target(int uid, std::string_view process, int max_len = 1024);
+void crawl_procfs(const std::function<bool(int)> &fn);
+
+// Revert
+void revert_daemon(int pid, int client = -1);
+void revert_unmount(int pid = -1);
+
+// SuList
+void do_mount_magisk(int pid);
+void mount_magisk_to_pid(int pid);
+void umount_all_zygote();
+void update_sulist_config(bool enable);
+
+// Ptrace
+void proc_monitor();
+extern pthread_t monitor_thread;
+
+// Mount Su
+void enable_mount_su();
+void disable_unmount_su();

@@ -40,9 +40,10 @@ object Config : PreferenceConfig, DBConfig {
         const val SU_MNT_NS = "mnt_ns"
         const val SU_BIOMETRIC = "su_biometric"
         const val ZYGISK = "zygisk"
-        const val DENYLIST = "denylist"
+        const val DENYLIST = "magiskhide"
         const val SU_MANAGER = "requester"
         const val KEYSTORE = "keystore"
+        const val SULIST = "sulist"
 
         // prefs
         const val SU_REQUEST_TIMEOUT = "su_request_timeout"
@@ -79,6 +80,11 @@ object Config : PreferenceConfig, DBConfig {
         const val ROOT_ACCESS_APPS_ONLY = 1
         const val ROOT_ACCESS_ADB_ONLY = 2
         const val ROOT_ACCESS_APPS_AND_ADB = 3
+
+        // su auth mode
+        const val BIOMETRIC_DISABLED = 0
+        const val BIOMETRIC_SYSTEM = 1
+        const val BIOMETRIC_MAGISK = 2
 
         // su multiuser
         const val MULTIUSER_MODE_OWNER_ONLY = 0
@@ -159,14 +165,15 @@ object Config : PreferenceConfig, DBConfig {
     var rootMode by dbSettings(Key.ROOT_ACCESS, Value.ROOT_ACCESS_APPS_AND_ADB)
     var suMntNamespaceMode by dbSettings(Key.SU_MNT_NS, Value.NAMESPACE_MODE_REQUESTER)
     var suMultiuserMode by dbSettings(Key.SU_MULTIUSER_MODE, Value.MULTIUSER_MODE_OWNER_ONLY)
-    private var suBiometric by dbSettings(Key.SU_BIOMETRIC, false)
+    var suBiometric by dbSettings(Key.SU_BIOMETRIC, Value.BIOMETRIC_DISABLED)
     var userAuth
-        get() = Info.isDeviceSecure && suBiometric
+        get() = Info.isDeviceSecure && suBiometric == Value.BIOMETRIC_SYSTEM
         set(value) {
-            suBiometric = value
+            userAuth = value
         }
     var zygisk by dbSettings(Key.ZYGISK, false)
     var denyList by BoolDBPropertyNoWrite(Key.DENYLIST, false)
+    var sulist by BoolDBPropertyNoWrite(Key.SULIST, false)
     var suManager by dbStrings(Key.SU_MANAGER, "", true)
     var keyStoreRaw by dbStrings(Key.KEYSTORE, "", true)
 
@@ -188,7 +195,6 @@ object Config : PreferenceConfig, DBConfig {
         prefs.edit {
             // Settings migration
             if (prefs.getBoolean(SU_FINGERPRINT, false))
-                suBiometric = true
             remove(SU_FINGERPRINT)
             prefs.getString(Key.UPDATE_CHANNEL, null).also {
                 if (it == null ||

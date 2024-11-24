@@ -12,12 +12,14 @@ import com.topjohnwu.magisk.arch.BaseViewModel
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.Info
 import com.topjohnwu.magisk.core.di.AppContext
+import com.topjohnwu.magisk.core.di.ServiceLocator
 import com.topjohnwu.magisk.core.isRunningAsStub
 import com.topjohnwu.magisk.core.ktx.activity
 import com.topjohnwu.magisk.core.ktx.toast
 import com.topjohnwu.magisk.core.tasks.HideAPK
 import com.topjohnwu.magisk.databinding.bindExtra
 import com.topjohnwu.magisk.events.AddHomeIconEvent
+import com.topjohnwu.magisk.events.BiometricEvent
 import com.topjohnwu.magisk.events.AuthEvent
 import com.topjohnwu.magisk.events.SnackbarEvent
 import com.topjohnwu.superuser.Shell
@@ -64,7 +66,7 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
                 SystemlessHosts
             ))
             if (Const.Version.atLeast_24_0()) {
-                list.addAll(listOf(Zygisk, DenyList, DenyListConfig))
+                list.addAll(listOf(Zygisk, DenyList, SuList, DenyListConfig))
             }
         }
 
@@ -92,7 +94,7 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
         when (item) {
             DownloadPath -> withExternalRW(andThen)
             UpdateChecker -> withPostNotificationPermission(andThen)
-            Authentication -> AuthEvent(andThen).publish()
+            Authentication -> if (ServiceLocator.biometrics.isEnabled) authenticate(andThen) else AuthEvent(andThen).publish()
             Theme -> SettingsFragmentDirections.actionSettingsFragmentToThemeFragment().navigate()
             DenyListConfig -> SettingsFragmentDirections.actionSettingsFragmentToDenyFragment().navigate()
             SystemlessHosts -> createHosts()
@@ -108,6 +110,7 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
             is Hide -> viewModelScope.launch { HideAPK.hide(view.activity, item.value) }
             Restore -> viewModelScope.launch { HideAPK.restore(view.activity) }
             Zygisk -> if (Zygisk.mismatch) SnackbarEvent(R.string.reboot_apply_change).publish()
+            SuList -> if (SuList.mismatch) SnackbarEvent(R.string.reboot_apply_change).publish()
             else -> Unit
         }
     }
@@ -117,6 +120,13 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
         if (UpdateChannelUrl.isEnabled && UpdateChannelUrl.value.isBlank()) {
             UpdateChannelUrl.onPressed(view, this)
         }
+    }
+
+private fun authenticate(callback: () -> Unit) {
+        BiometricEvent {
+            // allow the change on success
+            onSuccess { callback() }
+        }.publish()
     }
 
     private fun createHosts() {

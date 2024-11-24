@@ -17,6 +17,11 @@ using namespace std;
 
 atomic_flag skip_pkg_rescan;
 
+atomic_flag *p_skip_pkg_rescan = &skip_pkg_rescan;
+
+bool sulist_enabled = false;
+static const char *table_name = "hidelist";
+
 // For the following data structures:
 // If package name == ISOLATED_MAGIC, or app ID == -1, it means isolated service
 
@@ -33,10 +38,21 @@ static pthread_mutex_t data_lock = PTHREAD_MUTEX_INITIALIZER;
 
 atomic<bool> denylist_enforced = false;
 
-#define do_kill (zygisk_enabled && denylist_enforced)
+#define do_kill (denylist_enforced)
 
-static void rescan_apps() {
+static bool add_hide_set(const char *pkg, const char *proc);
+
+void rescan_apps() {
     LOGD("denylist: rescanning apps\n");
+
+    if (sulist_enabled){
+        db_strings str;
+        get_db_strings(str, SU_MANAGER);
+        string manager_pkg = (str[SU_MANAGER].empty())?
+            JAVA_PACKAGE_NAME : str[SU_MANAGER];
+        add_hide_set(manager_pkg.data(), manager_pkg.data());
+    }
+    
 
     app_id_to_pkgs.clear();
 
@@ -91,11 +107,25 @@ static void update_pkg_uid(const string &pkg, bool remove) {
     }
 }
 
+static set<string> get_users() {
+    set<string> result { "0" };
+    auto data_dir = xopen_dir(APP_DATA_DIR);
+    if (!data_dir)
+        return result;
+    dirent *entry;
+    struct stat st{};
+    char buf[PATH_MAX] = {0};
+    // For each user
+    while ((entry = xreaddir(data_dir.get()))) {
+        result.insert(entry->d_name);
+    }
+    return result;
+}
+
 // Leave /proc fd opened as we're going to read from it repeatedly
 static DIR *procfp;
 
-template<class F>
-static void crawl_procfs(const F &fn) {
+void crawl_procfs(const std::function<bool(int)> &fn) {
     rewinddir(procfp);
     dirent *dp;
     int pid;
@@ -107,6 +137,15 @@ static void crawl_procfs(const F &fn) {
 }
 
 static inline bool str_eql(string_view a, string_view b) { return a == b; }
+
+
+int new_daemon_thread(void(*entry)()) {
+    thread_entry proxy = [](void *entry) -> void * {
+        reinterpret_cast<void(*)()>(entry)();
+        return nullptr;
+    };
+    return new_daemon_thread(proxy, (void *) entry);
+}
 
 template<bool str_op(string_view, string_view) = &str_eql>
 static bool proc_name_match(int pid, string_view name) {
@@ -185,7 +224,7 @@ static bool add_hide_set(const char *pkg, const char *proc) {
     auto p = pkg_to_procs[pkg].emplace(proc);
     if (!p.second)
         return false;
-    LOGI("denylist add: [%s/%s]\n", pkg, proc);
+    LOGI("%s add: [%s/%s]\n", table_name, pkg, proc);
     if (!do_kill)
         return true;
     if (str_eql(pkg, ISOLATED_MAGIC)) {
@@ -206,10 +245,11 @@ static bool ensure_data() {
     if (pkg_to_procs_)
         return true;
 
-    LOGI("denylist: initializing internal data structures\n");
+    LOGI("%s: initializing internal data structures\n", table_name);
 
     default_new(pkg_to_procs_);
-    char *err = db_exec("SELECT * FROM denylist", [](db_row &row) -> bool {
+    string select_from_cmd = string("SELECT * FROM ") + table_name;
+    char *err = db_exec(select_from_cmd.data(), [](db_row &row) -> bool {
         add_hide_set(row["package_name"].data(), row["process"].data());
         return true;
     });
@@ -245,7 +285,7 @@ static int add_list(const char *pkg, const char *proc) {
     // Add to database
     char sql[4096];
     ssprintf(sql, sizeof(sql),
-            "INSERT INTO denylist (package_name, process) VALUES('%s', '%s')", pkg, proc);
+            "INSERT INTO %s (package_name, process) VALUES('%s', '%s')", table_name, pkg, proc);
     char *err = db_exec(sql);
     db_err_cmd(err, return DenyResponse::ERROR)
     return DenyResponse::OK;
@@ -271,10 +311,10 @@ static int rm_list(const char *pkg, const char *proc) {
                 update_pkg_uid(it->first, true);
                 pkg_to_procs.erase(it);
                 remove = true;
-                LOGI("denylist rm: [%s]\n", pkg);
+                LOGI("%s rm: [%s]\n", table_name, pkg);
             } else if (it->second.erase(proc) != 0) {
                 remove = true;
-                LOGI("denylist rm: [%s/%s]\n", pkg, proc);
+                LOGI("%s rm: [%s/%s]\n", table_name, pkg, proc);
                 if (it->second.empty()) {
                     update_pkg_uid(it->first, true);
                     pkg_to_procs.erase(it);
@@ -288,10 +328,10 @@ static int rm_list(const char *pkg, const char *proc) {
 
     char sql[4096];
     if (proc[0] == '\0')
-        ssprintf(sql, sizeof(sql), "DELETE FROM denylist WHERE package_name='%s'", pkg);
+        ssprintf(sql, sizeof(sql), "DELETE FROM %s WHERE package_name='%s'", table_name, pkg);
     else
         ssprintf(sql, sizeof(sql),
-                "DELETE FROM denylist WHERE package_name='%s' AND process='%s'", pkg, proc);
+                "DELETE FROM %s WHERE package_name='%s' AND process='%s'", table_name, pkg, proc);
     char *err = db_exec(sql);
     db_err_cmd(err, return DenyResponse::ERROR)
     return DenyResponse::OK;
@@ -309,6 +349,67 @@ void ls_list(int client) {
         if (!ensure_data()) {
             write_int(client, static_cast<int>(DenyResponse::ERROR));
             return;
+        }
+
+        set<string> users = get_users();
+        set<string> pkgs_to_rm;
+        set<string> isolated_procs_to_rm;
+    
+        // Find the packages that are not installed and remove them from list
+        for (const auto &[pkg, procs] : pkg_to_procs) {
+            // Isolated process
+            if (pkg == ISOLATED_MAGIC) {
+                // Find the isolated processes not associated with any app id and remove them from the list
+                for (const auto &proc : procs) {
+                    // Check if the process is not associated with any app id
+                    for (const auto &[app_id, pkgs] : app_id_to_pkgs)
+                    for (const auto &pkg_ : pkgs)
+                    if (str_starts(proc, pkg_))
+                        goto skip_rm_isolate_proc;
+                    // If not associated, remove it from the list
+                    isolated_procs_to_rm.insert(proc);
+    
+                    skip_rm_isolate_proc:
+                    continue;
+                }
+                continue;
+            }
+    
+            // For every package name of app
+            for (const auto &user : users) {
+                string app_data_dir = string(APP_DATA_DIR) + "/" + user + "/" + pkg;
+                if (access(app_data_dir.data(), F_OK) == 0)
+                    goto skip_rm_pkg;
+            }
+            pkgs_to_rm.insert(pkg);
+            
+            skip_rm_pkg:
+            continue;
+        }
+    
+        char sql[4096];
+        for (const auto &pkg : pkgs_to_rm) {
+            if (auto it = pkg_to_procs.find(pkg); it != pkg_to_procs.end()) {
+                update_pkg_uid(it->first, true);
+                pkg_to_procs.erase(it);
+                LOGI("%s rm: [%s]\n", table_name, pkg.data());
+            }
+            ssprintf(sql, sizeof(sql), "DELETE FROM %s WHERE package_name='%s'", table_name, pkg.data());
+            db_exec(sql);
+        }
+    
+        if (auto it = pkg_to_procs.find(ISOLATED_MAGIC); it != pkg_to_procs.end()) {
+            for (const auto &proc : isolated_procs_to_rm) {
+                if (it->second.erase(proc) != 0) {
+                    LOGI("%s rm: [%s/%s]\n", table_name, ISOLATED_MAGIC, proc.data());
+                    if (it->second.empty()) {
+                        pkg_to_procs.erase(it);
+                    }
+                }
+                ssprintf(sql, sizeof(sql),
+                    "DELETE FROM %s WHERE package_name='%s' AND process='%s'", table_name, ISOLATED_MAGIC, proc.data());
+                db_exec(sql);
+            }
         }
 
         write_int(client,static_cast<int>(DenyResponse::OK));
@@ -334,6 +435,14 @@ static void update_deny_config() {
     db_err(err);
 }
 
+void update_sulist_config(bool enable) {
+    char sql[64];
+    sprintf(sql, "REPLACE INTO settings (key,value) VALUES('%s',%d)",
+        DB_SETTING_KEYS[SULIST_CONFIG], enable? 1 : 0);
+    char *err = db_exec(sql);
+    db_err(err);
+}
+
 int enable_deny() {
     if (denylist_enforced) {
         return DenyResponse::OK;
@@ -342,39 +451,65 @@ int enable_deny() {
 
         if (access("/proc/self/ns/mnt", F_OK) != 0) {
             LOGW("The kernel does not support mount namespace\n");
+            sulist_enabled = false;
+            table_name = "hidelist";
+            update_sulist_config(false);
             return DenyResponse::NO_NS;
         }
 
         if (procfp == nullptr && (procfp = opendir("/proc")) == nullptr)
-            return DenyResponse::ERROR;
+            goto daemon_error;
 
-        LOGI("* Enable DenyList\n");
+        if (sulist_enabled) {
+            LOGI("* Enable SuList\n");
+        } else {
+            LOGI("* Enable MagiskHide\n");
+        }
 
         denylist_enforced = true;
 
         if (!ensure_data()) {
             denylist_enforced = false;
+            goto daemon_error;
+        }
+        if (!zygisk_enabled && new_daemon_thread(&proc_monitor)){
+            // cannot start monitor_proc, return daemon error
             return DenyResponse::ERROR;
         }
 
-        // On Android Q+, also kill blastula pool and all app zygotes
-        if (SDK_INT >= 29 && zygisk_enabled) {
-            kill_process("usap32", true);
-            kill_process("usap64", true);
-            kill_process<&proc_context_match>("u:r:app_zygote:s0", true);
+        if (sulist_enabled) {
+            // Add SystemUI and Settings to sulist because modules might need to modify it
+            add_hide_set("com.android.systemui", "com.android.systemui");
+            add_hide_set("com.android.settings", "com.android.settings");
+            add_hide_set(JAVA_PACKAGE_NAME, JAVA_PACKAGE_NAME);
         }
     }
 
     update_deny_config();
+
     return DenyResponse::OK;
+
+    daemon_error:
+    sulist_enabled = false;
+    table_name = "hidelist";
+    update_sulist_config(false);
+    return DenyResponse::ERROR;
 }
 
 int disable_deny() {
+    // sulist mode cannot be turn off without reboot
+    if (sulist_enabled)
+        return DenyResponse::SULIST_NO_DISABLE;
+
     if (denylist_enforced) {
         denylist_enforced = false;
-        LOGI("* Disable DenyList\n");
+        LOGI("* Disable MagiskHide\n");
+    }
+    if (!zygisk_enabled) {
+        pthread_kill(monitor_thread, SIGTERMTHRD);
     }
     update_deny_config();
+
     return DenyResponse::OK;
 }
 
@@ -382,23 +517,40 @@ void initialize_denylist() {
     if (!denylist_enforced) {
         db_settings dbs;
         get_db_settings(dbs, DENYLIST_CONFIG);
-        if (dbs[DENYLIST_CONFIG])
+        if (dbs[DENYLIST_CONFIG]) {
+            // get sulist status before enable denylist
+            get_db_settings(dbs, SULIST_CONFIG);
+            if (dbs[SULIST_CONFIG]) {
+                sulist_enabled = true;
+                table_name = "sulist";
+            }
             enable_deny();
+        }
     }
 }
 
-bool is_deny_target(int uid, string_view process) {
+bool is_deny_target(int uid, string_view process, int max_len) {
     mutex_guard lock(data_lock);
     if (!ensure_data())
         return false;
 
-    if (!skip_pkg_rescan.test_and_set())
+    if (!p_skip_pkg_rescan->test_and_set())
         rescan_apps();
 
     int app_id = to_app_id(uid);
+    int manager_app_id = get_manager();
+    string process_name = {process.begin(), process.end()};
+
+    if (app_id == manager_app_id) {
+        // allow manager to access Magisk
+        return (sulist_enabled)? true : false;
+    }
+
     if (app_id >= 90000) {
         if (auto it = pkg_to_procs.find(ISOLATED_MAGIC); it != pkg_to_procs.end()) {
             for (const auto &s : it->second) {
+                if (s.length() > max_len && process.length() > max_len && str_starts(s, process))
+                    return true;
                 if (str_starts(process, s))
                     return true;
             }
@@ -412,6 +564,24 @@ bool is_deny_target(int uid, string_view process) {
             if (pkg_to_procs.find(pkg)->second.count(process))
                 return true;
         }
+        for (const auto &s : it->second) {
+            if (s.length() > max_len && process.length() > max_len && str_starts(s, process))
+                return true;
+            if (s == process)
+                return true;
+        }
+    }
+    return false;
+}
+
+bool is_uid_on_list(int uid) {
+    auto it = app_id_to_pkgs.find(uid % 100000);
+    // double check
+    if (it == app_id_to_pkgs.end())
+        return false;
+    for (const auto &pkg : it->second) {
+        if (pkg_to_procs.find(pkg)->second.size() > 0)
+            return true;
     }
     return false;
 }

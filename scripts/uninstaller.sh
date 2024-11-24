@@ -42,13 +42,112 @@ $DATA_DE || abort "! Cannot access /data, please uninstall with the Magisk app"
 get_flags
 find_boot_image
 
-[ -z $BOOTIMAGE ] && abort "! Unable to detect target image"
-ui_print "- Target image: $BOOTIMAGE"
+backup_restore(){
+test -f "${1}.gz" || { test -f "$1" && gzip -k "$1"; }
+test -f "${1}.gz" && { rm -rf "$1" && gzip -kdf "${1}.gz"; } || return 1
+}
+
+if ! $BOOTMODE; then
+    ui_print "********************************************"
+    ui_print " Due to the complex of recovery environment"
+    ui_print " Uninstall Magisk in Recovery is not guaranteed"
+    ui_print "********************************************"
+fi
 
 # Detect version and architecture
 api_level_arch_detect
 
 ui_print "- Device platform: $ABI"
+
+if ( [ -z "$(grep_prop SHA1 "$MAGISKTMP/.magisk/config")" ] && $BOOTMODE ) || [ "$(grep_prop SYSTEMMODE /system/etc/init/magisk/config)" == "true" ]; then
+
+# Use kernel trick to clean up mirrors automatically when installer completed
+MIRRORDIR="/proc/$$/attr"
+ROOTDIR="$MIRRORDIR/system_root"
+SYSTEMDIR="$MIRRORDIR/system"
+VENDORDIR="$MIRRORDIR/vendor"
+ODM_DIR="$MIRRORDIR/odm"
+
+abort_install(){
+  umount -l "$MIRRORDIR"
+  rm -rf "$MIRRORDIR"
+  abort "! Installaion faled"
+}
+
+if $BOOTMODE; then
+    # setup mirrors to get the original content
+    mount -t tmpfs -o 'mode=0755' tmpfs "$MIRRORDIR" || return 1
+    if is_rootfs; then
+        ROOTDIR=/
+        mkdir "$SYSTEMDIR"
+        force_bind_mount "/system" "$SYSTEMDIR" || return 1
+    else
+        mkdir "$ROOTDIR"
+        force_bind_mount "/" "$ROOTDIR" || return 1
+        if mountpoint -q /system; then
+            mkdir "$SYSTEMDIR"
+            force_bind_mount "/system" "$SYSTEMDIR" || return 1
+        else
+            ln -fs ./system_root/system "$SYSTEMDIR"
+        fi
+    fi
+
+    # check if /vendor is seperated fs
+    if mountpoint -q /vendor; then
+        mkdir "$VENDORDIR"
+        force_bind_mount "/vendor" "$VENDORDIR" || return 1
+    else
+        ln -fs ./system/vendor "$VENDORDIR"
+    fi
+
+    # check if /odm is seperated fs
+    if mountpoint -q /odm; then
+        mkdir "$ODM_DIR"
+        force_bind_mount "/odm" "$ODM_DIR" || return 1
+    else
+        ln -fs ./system_root/odm "$ODM_DIR"
+    fi
+else
+    local MIRRORDIR="/" ROOTDIR SYSTEMDIR VENDORDIR
+    ROOTDIR="$MIRRORDIR/system_root"
+    SYSTEMDIR="$MIRRORDIR/system"
+    VENDORDIR="$MIRRORDIR/vendor"
+    ODM_DIR="$MIRRORDIR/odm"
+fi
+
+ui_print "--- Uninstall Magisk in system partition"
+
+blockdev --setrw /dev/block/mapper/system$SLOT 2>/dev/null
+mount -o rw,remount /system || mount -o rw,remount /
+mount -o rw,remount /system_root
+mount -o rw,remount /vendor
+mount -o rw,remount /odm
+
+for file in /vendor/etc/selinux/precompiled_sepolicy /odm/etc/selinux/precompiled_sepolicy /system/etc/selinux/precompiled_sepolicy /system_root/sepolicy /system_root/sepolicy_debug /system_root/sepolicy.unlocked; do
+    if [ -f "$MIRRORDIR$file" ]; then
+        sepol="$file"
+        break
+    fi
+done
+
+if [ ! -z "$sepol" ]; then
+    ui_print "- Restore sepolicy patch"
+    backup_restore "$MIRRORDIR$sepol" && rm -rf "$MIRRORDIR$sepol".gz
+fi
+
+
+ui_print "- Removing Magisk binaries"
+rm -rf $MIRRORDIR/system/etc/init/*magisk* $MIRRORDIR/system/system/etc/init/*magisk* $MIRRORDIR/system_root/system/etc/init/*magisk* \
+$MIRRORDIR/system/xbin/magisk $MIRRORDIR/system/xbin/.magisk || abort "! Cannot uninstall"
+
+backup_restore "$MIRRORDIR/system/etc/init/bootanim.rc" && rm -rf "$MIRRORDIR/system/etc/init/bootanim.rc.gz"
+
+else
+
+ui_print "--- Uninstall Magisk in boot image"
+
+[ -z $BOOTIMAGE ] && abort "! Unable to detect target image"
+ui_print "- Target image: $BOOTIMAGE"
 
 BINDIR=$INSTALLER/lib/$ABI
 cd $BINDIR
@@ -140,6 +239,8 @@ case $((STATUS & 3)) in
     abort "! Cannot uninstall"
     ;;
 esac
+
+fi
 
 if $BOOTMODE; then
   ui_print "- Removing modules"

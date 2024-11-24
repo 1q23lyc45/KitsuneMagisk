@@ -11,6 +11,8 @@ enum : int {
     GET_INFO,
     CONNECT_COMPANION,
     GET_MODDIR,
+    SULIST_ROOT_NS,
+    REVERT_UNMOUNT,
     END
 };
 }
@@ -27,14 +29,14 @@ enum : int {
 #define ZLOGW(...) LOGW("zygisk32: " __VA_ARGS__)
 #endif
 
-// Extreme verbose logging
-#define ZLOGV(...) ZLOGD(__VA_ARGS__)
-//#define ZLOGV(...) (void*)0
+extern void *self_handle;
+
+extern int system_server_fd;
 
 void hook_functions();
-void hookJniNativeMethods(JNIEnv *env, const char *clz, JNINativeMethod *methods, int numMethods);
-
 int remote_get_info(int uid, const char *process, uint32_t *flags, std::vector<int> &fds);
+int remote_request_sulist();
+int remote_request_umount();
 
 inline int zygisk_request(int req) {
     int fd = connect_daemon(+RequestCode::ZYGISK);
@@ -43,18 +45,4 @@ inline int zygisk_request(int req) {
     return fd;
 }
 
-// The reference of the following structs
-// https://cs.android.com/android/platform/superproject/main/+/main:art/libnativebridge/include/nativebridge/native_bridge.h
-
-struct NativeBridgeRuntimeCallbacks {
-    const char* (*getMethodShorty)(JNIEnv* env, jmethodID mid);
-    uint32_t (*getNativeMethodCount)(JNIEnv* env, jclass clazz);
-    uint32_t (*getNativeMethods)(JNIEnv* env, jclass clazz, JNINativeMethod* methods,
-                                 uint32_t method_count);
-};
-
-struct NativeBridgeCallbacks {
-    uint32_t version;
-    void *padding[5];
-    bool (*isCompatibleWith)(uint32_t);
-};
+bool trace_zygote(int pid, const char *libpath);

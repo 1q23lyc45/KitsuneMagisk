@@ -25,7 +25,7 @@
 
     <application
         android:allowBackup="false"
-        android:label="Magisk"
+        android:label="Kitsune Mask"
         android:requestLegacyExternalStorage="true"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Translucent.NoTitleBar" />

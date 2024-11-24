@@ -1,3 +1,3 @@
 {
-    NativeBridgeItf;
+    zygisk_inject_entry;
 };

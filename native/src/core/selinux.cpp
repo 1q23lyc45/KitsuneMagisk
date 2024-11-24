@@ -112,6 +112,8 @@ static void restore_syscon(int dirfd) {
 }
 
 void restorecon() {
+    if (!selinux_enabled())
+        return;
     int fd = xopen("/sys/fs/selinux/context", O_WRONLY | O_CLOEXEC);
     if (write(fd, ADB_CON, sizeof(ADB_CON)) >= 0)
         lsetfilecon(SECURE_DIR, ADB_CON);
@@ -122,6 +124,8 @@ void restorecon() {
 }
 
 void restore_tmpcon() {
+    if (!selinux_enabled())
+        return;
     const char *tmp = get_magisk_tmp();
     if (tmp == "/sbin"sv)
         setfilecon(tmp, ROOT_CON);

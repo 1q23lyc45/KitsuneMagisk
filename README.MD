@@ -1,4 +1,5 @@
-![](docs/images/logo.png)
+![](docs/images/logo.png#gh-dark-mode-only)
+![](docs/images/logo_dark.png#gh-light-mode-only)
 
 [![Downloads](https://img.shields.io/badge/dynamic/json?color=green&label=Downloads&query=totalString&url=https%3A%2F%2Fraw.githubusercontent.com%2Ftopjohnwu%2Fmagisk-files%2Fcount%2Fcount.json&cacheSeconds=1800)](https://raw.githubusercontent.com/topjohnwu/magisk-files/count/count.json)
 

@@ -20,6 +20,9 @@ static map<int, poll_callback> *poll_map;
 static vector<pollfd> *poll_fds;
 static int poll_ctrl;
 
+int magisktmpfs_fd = -1;
+bool HAVE_32 = false;
+
 enum {
     POLL_CTRL_NEW,
     POLL_CTRL_RM,
@@ -159,6 +162,7 @@ static void handle_request_async(int client, int code, const sock_cred &cred) {
         LOGI("** zygote restarted\n");
         prune_su_access();
         reset_zygisk(false);
+        disable_unmount_su();
         close(client);
         break;
     case +RequestCode::SQLITE_CMD:
@@ -225,7 +229,18 @@ static bool is_client(pid_t pid) {
     char path[32];
     sprintf(path, "/proc/%d/exe", pid);
     struct stat st{};
-    return !(stat(path, &st) || st.st_dev != self_st.st_dev || st.st_ino != self_st.st_ino);
+    return !(stat(path, &st) || st.st_size != self_st.st_size);
+}
+
+static bool is_selinux_enforced() {
+    int fd = (selinux_enabled())? xopen("/sys/fs/selinux/enforce", O_RDONLY) : -1;
+    if (fd >= 0) {
+        char c;
+        read(fd, &c, sizeof(char));
+        close(fd);
+        return c != '0';
+    }
+    return false;
 }
 
 static void handle_request(pollfd *pfd) {
@@ -242,7 +257,7 @@ static void handle_request(pollfd *pfd) {
         return;
     }
     is_root = cred.uid == AID_ROOT;
-    is_zygote = cred.context == "u:r:zygote:s0";
+    is_zygote = cred.context == "u:r:zygote:s0" || !is_selinux_enforced();
 
     if (!is_root && !is_zygote && !is_client(cred.pid)) {
         // Unsupported client state
@@ -355,6 +370,9 @@ static void daemon_entry() {
     // Get self stat
     xstat("/proc/self/exe", &self_st);
 
+    // get magisktmpfs fd
+    magisktmpfs_fd = open(get_magisk_tmp(), O_PATH);
+
     // Get API level
     parse_prop_file("/system/build.prop", [](auto key, auto val) -> bool {
         if (key == "ro.build.version.sdk") {
@@ -371,6 +389,14 @@ static void daemon_entry() {
         }
     }
     LOGI("* Device API level: %d\n", SDK_INT);
+    auto cpu64 = get_prop("ro.product.cpu.abilist64");
+    auto cpu32 = get_prop("ro.product.cpu.abilist32");
+    if (!cpu64.empty())
+        LOGI("* CPU ABI 64-bit: %s\n", cpu64.data());
+    if (!cpu32.empty()) {
+        LOGI("* CPU ABI 32-bit: %s\n", cpu32.data());
+        HAVE_32 = true;
+    }
 
     restore_tmpcon();
 
@@ -378,11 +404,17 @@ static void daemon_entry() {
     const char *tmp = get_magisk_tmp();
     char path[64];
     ssprintf(path, sizeof(path), "%s/" ROOTMNT, tmp);
-    if (access(path, F_OK) == 0) {
-        file_readline(true, path, [](string_view line) -> bool {
-            umount2(line.data(), MNT_DETACH);
-            return true;
-        });
+    {
+        vector<string> targets;
+        auto mount_info = parse_mount_info("self");
+        for (auto &info : mount_info) {
+            if (info.root.starts_with("/" ROOTOVL "/")) {
+                targets.emplace_back(std::move(info.target));
+            }
+        }
+        for (auto &s : targets) {
+            umount2(s.data(), MNT_DETACH);
+        }
     }
     if (getenv("REMOUNT_ROOT")) {
         xmount(nullptr, "/", nullptr, MS_REMOUNT | MS_RDONLY, nullptr);
@@ -390,13 +422,6 @@ static void daemon_entry() {
     }
     ssprintf(path, sizeof(path), "%s/" ROOTOVL, tmp);
     rm_rf(path);
-
-    // Unshare magiskd
-    xunshare(CLONE_NEWNS);
-    // Hide magisk internal mount point
-    xmount(nullptr, tmp, nullptr, MS_PRIVATE | MS_REC, nullptr);
-    // Fix sdcardfs bug on old kernel
-    xmount(nullptr, "/mnt", nullptr, MS_SLAVE | MS_REC, nullptr);
 
     // Use isolated devpts if kernel support
     if (access("/dev/pts/ptmx", F_OK) == 0) {
@@ -415,7 +440,7 @@ static void daemon_entry() {
 
     fd = xsocket(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0);
     sockaddr_un addr = {.sun_family = AF_LOCAL};
-    ssprintf(addr.sun_path, sizeof(addr.sun_path), "%s/" MAIN_SOCKET, tmp);
+    ssprintf(addr.sun_path, sizeof(addr.sun_path), "/dev/magisk:socket:%s", RANDOM_SOCKET_NAME);
     unlink(addr.sun_path);
     if (xbind(fd, (sockaddr *) &addr, sizeof(addr)))
         exit(1);
@@ -454,7 +479,7 @@ int connect_daemon(int req, bool create) {
     int fd = xsocket(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0);
     sockaddr_un addr = {.sun_family = AF_LOCAL};
     const char *tmp = get_magisk_tmp();
-    ssprintf(addr.sun_path, sizeof(addr.sun_path), "%s/" MAIN_SOCKET, tmp);
+    ssprintf(addr.sun_path, sizeof(addr.sun_path), "/dev/magisk:socket:%s", RANDOM_SOCKET_NAME);
     if (connect(fd, (sockaddr *) &addr, sizeof(addr))) {
         if (!create || getuid() != AID_ROOT) {
             LOGE("No daemon is currently running!\n");

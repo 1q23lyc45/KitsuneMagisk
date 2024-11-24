@@ -1,12 +1,10 @@
 #pragma once
 
-#include <regex.h>
-#include <bitset>
-#include <list>
-
 #include "api.hpp"
 
-struct ZygiskContext;
+namespace {
+
+struct HookContext;
 struct ZygiskModule;
 
 struct AppSpecializeArgs_v1;
@@ -25,7 +23,6 @@ struct api_abi_v1;
 struct api_abi_v2;
 using  api_abi_v3 = api_abi_v2;
 struct api_abi_v4;
-using  api_abi_v5 = api_abi_v4;
 
 union ApiTable;
 
@@ -128,9 +125,12 @@ enum : uint32_t {
 
     DENYLIST_ENFORCING = (1u << 30),
     PROCESS_IS_MAGISK_APP = (1u << 31),
+    MAGISKHIDE_ENABLED = (1u << 28),
+    ALLOWLIST_ENFORCING = (1u << 27),
+    PROCESS_ON_ALLOWLIST = (1u << 26),
 
-    UNMOUNT_MASK = (PROCESS_ON_DENYLIST | DENYLIST_ENFORCING),
-    PRIVATE_MASK = (DENYLIST_ENFORCING | PROCESS_IS_MAGISK_APP)
+    UNMOUNT_MASK = (PROCESS_ON_DENYLIST | MAGISKHIDE_ENABLED),
+    PRIVATE_MASK = (MAGISKHIDE_ENABLED | PROCESS_IS_MAGISK_APP | ALLOWLIST_ENFORCING | PROCESS_ON_ALLOWLIST)
 };
 
 struct api_abi_base {
@@ -170,23 +170,44 @@ union ApiTable {
     api_abi_v4 v4;
 };
 
+#define call_app(method)               \
+switch (*mod.api_version) {            \
+case 1:                                \
+case 2: {                              \
+    AppSpecializeArgs_v1 a(args);      \
+    mod.v1->method(mod.v1->impl, &a);  \
+    break;                             \
+}                                      \
+case 3:                                \
+case 4:                                \
+    mod.v1->method(mod.v1->impl, args);\
+    break;                             \
+}
+
 struct ZygiskModule {
 
     void onLoad(void *env) {
         entry.fn(&api, env);
     }
-
-    void preAppSpecialize(AppSpecializeArgs_v5 *args) const;
-    void postAppSpecialize(const AppSpecializeArgs_v5 *args) const;
-    void preServerSpecialize(ServerSpecializeArgs_v1 *args) const;
-    void postServerSpecialize(const ServerSpecializeArgs_v1 *args) const;
+    void preAppSpecialize(AppSpecializeArgs_v5 *args) const {
+        call_app(preAppSpecialize)
+    }
+    void postAppSpecialize(const AppSpecializeArgs_v5 *args) const {
+        call_app(postAppSpecialize)
+    }
+    void preServerSpecialize(ServerSpecializeArgs_v1 *args) const {
+        mod.v1->preServerSpecialize(mod.v1->impl, args);
+    }
+    void postServerSpecialize(const ServerSpecializeArgs_v1 *args) const {
+        mod.v1->postServerSpecialize(mod.v1->impl, args);
+    }
 
     bool valid() const;
     int connectCompanion() const;
     int getModuleDir() const;
     void setOption(zygisk::Option opt);
     static uint32_t getFlags();
-    void tryUnload() const;
+    void tryUnload() const { if (unload) dlclose(handle); }
     void clearApi() { memset(&api, 0, sizeof(api)); }
     int getId() const { return id; }
 
@@ -212,80 +233,4 @@ private:
     } mod;
 };
 
-extern ZygiskContext *g_ctx;
-extern int (*old_fork)(void);
-
-enum : uint32_t {
-    POST_SPECIALIZE = (1u << 0),
-    APP_FORK_AND_SPECIALIZE = (1u << 1),
-    APP_SPECIALIZE = (1u << 2),
-    SERVER_FORK_AND_SPECIALIZE = (1u << 3),
-    DO_REVERT_UNMOUNT = (1u << 4),
-    SKIP_CLOSE_LOG_PIPE = (1u << 5),
-};
-
-#define MAX_FD_SIZE 1024
-
-#define DCL_PRE_POST(name) \
-void name##_pre();         \
-void name##_post();
-
-struct ZygiskContext {
-    JNIEnv *env;
-    union {
-        void *ptr;
-        AppSpecializeArgs_v5 *app;
-        ServerSpecializeArgs_v1 *server;
-    } args;
-
-    const char *process;
-    std::list<ZygiskModule> modules;
-
-    int pid;
-    uint32_t flags;
-    uint32_t info_flags;
-    std::bitset<MAX_FD_SIZE> allowed_fds;
-    std::vector<int> exempted_fds;
-
-    struct RegisterInfo {
-        regex_t regex;
-        std::string symbol;
-        void *callback;
-        void **backup;
-    };
-
-    struct IgnoreInfo {
-        regex_t regex;
-        std::string symbol;
-    };
-
-    pthread_mutex_t hook_info_lock;
-    std::vector<RegisterInfo> register_info;
-    std::vector<IgnoreInfo> ignore_info;
-
-    ZygiskContext(JNIEnv *env, void *args);
-    ~ZygiskContext();
-
-    void run_modules_pre(const std::vector<int> &fds);
-    void run_modules_post();
-    DCL_PRE_POST(fork)
-    DCL_PRE_POST(app_specialize)
-    DCL_PRE_POST(server_specialize)
-    DCL_PRE_POST(nativeForkAndSpecialize)
-    DCL_PRE_POST(nativeSpecializeAppProcess)
-    DCL_PRE_POST(nativeForkSystemServer)
-
-    void sanitize_fds();
-    bool exempt_fd(int fd);
-    bool can_exempt_fd() const;
-    bool is_child() const { return pid <= 0; }
-
-    // Compatibility shim
-    void plt_hook_register(const char *regex, const char *symbol, void *fn, void **backup);
-    void plt_hook_exclude(const char *regex, const char *symbol);
-    void plt_hook_process_regex();
-
-    bool plt_hook_commit();
-};
-
-#undef DCL_PRE_POST
+} // namespace

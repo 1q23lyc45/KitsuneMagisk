@@ -204,7 +204,7 @@ void app_notify(const su_context &ctx) {
 int app_request(const su_context &ctx) {
     // Create FIFO
     char fifo[64];
-    ssprintf(fifo, sizeof(fifo), "%s/" INTLROOT "/su_request_%d", get_magisk_tmp(), ctx.pid);
+    ssprintf(fifo, sizeof(fifo), "/dev/magisk:su_request:%s:%d", RANDOM_SOCKET_NAME, ctx.pid);
     mkfifo(fifo, 0600);
     chown(fifo, ctx.info->mgr_uid, ctx.info->mgr_uid);
     setfilecon(fifo, MAGISK_FILE_CON);

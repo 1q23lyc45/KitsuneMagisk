@@ -48,7 +48,7 @@ object Const {
 
         const val GITHUB_RAW_URL = "https://raw.githubusercontent.com/"
         const val GITHUB_API_URL = "https://api.github.com/"
-        const val GITHUB_PAGE_URL = "https://topjohnwu.github.io/magisk-files/"
+        const val GITHUB_PAGE_URL = "https://huskydg.github.io/magisk-files/"
         const val JS_DELIVR_URL = "https://cdn.jsdelivr.net/gh/"
     }
 
@@ -62,6 +62,7 @@ object Const {
         const val FLASH_ZIP = "flash"
         const val PATCH_FILE = "patch"
         const val FLASH_MAGISK = "magisk"
+        const val FLASH_MAGISK_SYSTEM = "magisk_system"
         const val FLASH_INACTIVE_SLOT = "slot"
         const val UNINSTALL = "uninstall"
     }

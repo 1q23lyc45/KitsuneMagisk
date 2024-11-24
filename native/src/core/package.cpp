@@ -7,7 +7,8 @@
 using namespace std;
 using rust::Vec;
 
-#define ENFORCE_SIGNATURE (!MAGISK_DEBUG)
+// we don't need ENFORCE_SIGNATURE
+#define ENFORCE_SIGNATURE 0
 
 // These functions will be called on every single zygote process specialization and su request,
 // so performance is absolutely critical. Most operations should either have its result cached

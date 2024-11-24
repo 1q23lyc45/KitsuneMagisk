@@ -173,6 +173,10 @@
     <string name="settings_su_auth_title">User Authentication</string>
     <string name="settings_su_auth_summary">Ask for user authentication during Superuser requests</string>
     <string name="settings_su_auth_insecure">No authentication method is configured on the device</string>
+    <string name="su_biometric">Authentication Mode</string>
+    <string name="settings_biometric_disabled">Auth Disabled</string>
+    <string name="settings_biometric_system">System Provide</string>
+    <string name="settings_biometric_magisk">Magisk Provide</string>
     <string name="settings_customization">Customization</string>
     <string name="setting_add_shortcut_summary">Add a pretty shortcut to the home screen in case the name and icon are difficult to recognize after hiding the app</string>
     <string name="settings_doh_title">DNS over HTTPS</string>
@@ -243,5 +247,20 @@
     <string name="app_not_found">No app found to handle this action</string>
     <string name="reboot_apply_change">Reboot to apply changes</string>
     <string name="restore_app_confirmation">This will restore the hidden app back to the original app. Do you really want to do this?</string>
+
+<!--Delta-->
+    <string name="direct_install_system">Direct Install (modify /system directly)</string>
+    <string name="settings_hidelist_config_title">Configure MagiskHide</string>
+    <string name="settings_hidelist_config_summary">Select the processes to be included on the hidelist</string>
+    <string name="settings_magiskhide_title">MagiskHide</string>
+    <string name="settings_magiskhide_summary">Magisk modifications are reverted for processes on hidelist</string>
+    <string name="settings_sulist_title">Enforce SuList</string>
+    <string name="settings_sulist">SuList</string>
+    <string name="settings_sulist_summary">Only processes on sulist can invoke Magisk root access</string>
+    <string name="settings_sulist_config_title">Configure SuList</string>
+    <string name="settings_sulist_config_summary">Select the processes to be included on the sulist</string>
+    <string name="settings_sulist_enforced">SuList is enforced</string>
+    <string name="settings_sulist_error_magiskhide">This feature need MagiskHide to be enabled</string>
+    <string name="home_notice_unofficial_magisk">WARNING! You are using an unofficial version of Magisk that is not officially supported by the Magisk author. This version may contain unstable modifications that could harm your device or compromise your security. Do not report any issues or request any help from official Magisk channels. If you use this version but do not know this is an unofficial version, please switch to the official Magisk at github.com/topjohnwu/Magisk</string>
 
 </resources>

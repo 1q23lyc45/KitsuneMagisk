@@ -64,7 +64,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:padding="@dimen/l1"
-                        android:text="@string/home_notice_content"
+                        android:text="@string/home_notice_unofficial_magisk"
                         android:textAppearance="@style/AppearanceFoundation.Caption.OnPrimary"
                         app:layout_constraintEnd_toStartOf="@+id/home_notice_hide"
                         app:layout_constraintStart_toStartOf="parent"
@@ -244,6 +244,14 @@
 
                     <include
                         item="@{DeveloperItem.Canyie.INSTANCE}"
+                        layout="@layout/item_developer"
+                        viewModel="@{viewModel}"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/l_50" />
+
+                    <include
+                        item="@{DeveloperItem.Husky.INSTANCE}"
                         layout="@layout/item_developer"
                         viewModel="@{viewModel}"
                         android:layout_width="wrap_content"

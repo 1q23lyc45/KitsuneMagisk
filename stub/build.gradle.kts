@@ -15,10 +15,10 @@ android {
     val canary = !Config.version.contains(".")
 
     val url = if (canary) null
-    else "https://cdn.jsdelivr.net/gh/topjohnwu/magisk-files@${Config.version}/app-release.apk"
+    else "https://huskydg.github.io/download/magisk/${Config.version}.apk"
 
     defaultConfig {
-        applicationId = "com.topjohnwu.magisk"
+        applicationId = "io.github.huskydg.magisk"
         versionCode = 1
         versionName = "1.0"
         buildConfigField("String", "APK_URL", url?.let { "\"$it\"" } ?: "null" )

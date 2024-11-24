@@ -167,6 +167,12 @@
     <string name="settings_su_reauth_summary">應用程式更新後，重新驗證超級使用者的要求</string>
     <string name="settings_su_tapjack_title">啟用點選攔截保護</string>
     <string name="settings_su_tapjack_summary">發現有其他應用程式重疊在超級使用者視窗上面時，不回應允許操作</string>
+    <string name="settings_su_auth_title">身份驗證</string>
+    <string name="settings_su_auth_summary">對超級使用者要求驗證</string>
+    <string name="settings_su_auth_insecure">裝置未配備驗證方式</string>
+    <string name="settings_biometric_disabled">禁用驗證</string>
+    <string name="settings_biometric_system">系統提供</string>
+    <string name="settings_biometric_magisk">Magisk提供</string>
     <string name="settings_customization">客製化</string>
     <string name="setting_add_shortcut_summary">在主螢幕中新增一個精緻的捷徑。防止隱藏 Magisk 以後，其名稱與圖示將難以辨識</string>
     <string name="settings_doh_title">安全化的網域解析(DoH)</string>
@@ -236,5 +242,19 @@
     <string name="app_not_found">沒有可以處理這個動作的應用程式</string>
     <string name="reboot_apply_change">重新啟動裝置以套用設定變更</string>
     <string name="restore_app_confirmation">這將會還原隱藏的應用程式至原始。請問您確定要執行？</string>
+
+    <string name="direct_install_system">直接安裝（直接修改/system）</string>
+    <string name="settings_hidelist_config_title">配置 MagiskHide</string>
+    <string name="settings_hidelist_config_summary">選擇要包含在隱藏清單中的程序</string>
+    <string name="settings_magiskhide_title">MagiskHide</string>
+    <string name="settings_magiskhide_summary">Magisk 修改已還原到隱藏清單中的程序</string>
+    <string name="settings_sulist_title">實作 SuList</string>
+    <string name="settings_sulist">SuList</string>
+    <string name="settings_sulist_summary">只有白名單程序才能呼叫 Magisk root 存取</string>
+    <string name="settings_sulist_config_title">配置 SuList</string>
+    <string name="settings_sulist_config_summary">選擇要列入白名單的流程</string>
+    <string name="settings_sulist_enforced">SuList 已強制執行</string>
+    <string name="settings_sulist_error_magiskhide">此功能需要啟用 MagiskHide</string>
+    <string name="home_notice_unofficial_magisk">警告！ 您正在使用 Magisk 的非官方版本，該版本未得到 Magisk 作者的正式支援。 此版本可能包含不穩定的修改，可能會損害您的裝置或危及您的安全。 請勿報告任何問題或向 Magisk 官方管道請求任何協助。 如果您使用此版本但不知道這是非官方版本，請切換到官方 Magisk github.com/topjohnwu/Magisk</string>
 
 </resources>

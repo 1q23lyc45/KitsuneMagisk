@@ -79,6 +79,7 @@ void parse_prop_file(const char *file,
         const std::function<bool(std::string_view, std::string_view)> &fn);
 std::vector<mount_info> parse_mount_info(const char *pid);
 std::string resolve_preinit_dir(const char *base_dir);
+std::string resolve_early_mount_dir(const char *base_dir);
 
 using sFILE = std::unique_ptr<FILE, decltype(&fclose)>;
 using sDIR = std::unique_ptr<DIR, decltype(&closedir)>;

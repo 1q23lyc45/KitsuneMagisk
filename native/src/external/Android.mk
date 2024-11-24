@@ -1,5 +1,11 @@
 LOCAL_PATH := $(call my-dir)
 
+# Header only library
+include $(CLEAR_VARS)
+LOCAL_MODULE:= libphmap
+LOCAL_EXPORT_C_INCLUDES := $(LOCAL_PATH)/parallel-hashmap
+include $(BUILD_STATIC_LIBRARY)
+
 # libxz.a
 include $(CLEAR_VARS)
 LOCAL_MODULE:= libxz
@@ -386,6 +392,19 @@ LOCAL_SRC_FILES := \
     zopfli/src/zopfli/util.c \
     zopfli/src/zopfli/zlib_container.c \
     zopfli/src/zopfli/zopfli_lib.c
+include $(BUILD_STATIC_LIBRARY)
+
+# libxdl.a
+include $(CLEAR_VARS)
+LOCAL_MODULE := libxdl
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/_xDL/xdl/src/main/cpp/include
+LOCAL_EXPORT_C_INCLUDES := $(LOCAL_C_INCLUDES)
+LOCAL_SRC_FILES := \
+    _xDL/xdl/src/main/cpp/xdl.c \
+    _xDL/xdl/src/main/cpp/xdl_iterate.c \
+    _xDL/xdl/src/main/cpp/xdl_linker.c \
+    _xDL/xdl/src/main/cpp/xdl_lzma.c \
+    _xDL/xdl/src/main/cpp/xdl_util.c
 include $(BUILD_STATIC_LIBRARY)
 
 CWD := $(LOCAL_PATH)
