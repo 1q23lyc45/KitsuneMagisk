@@ -117,7 +117,7 @@ wait_emu() {
 
 run_content_cmd() {
   while true; do
-    local out=$(adb shell echo "'content call --uri content://com.topjohnwu.magisk.provider --method $1'" \| /system/xbin/su | tee /dev/fd/2)
+    local out=$(adb shell echo "'content call --uri content://io.github.huskydg.magisk.provider --method $1'" \| /system/xbin/su | tee /dev/fd/2)
     if ! grep -q 'Bundle\[' <<< "$out"; then
       # The call failed, wait a while and retry later
       sleep 30
