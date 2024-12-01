@@ -2,7 +2,9 @@ name: Magisk CI
 
 on:
   push:
-    branches: kitsune
+    branches: 
+      - dev
+      - kitsune
   workflow_dispatch:
 
 jobs:
