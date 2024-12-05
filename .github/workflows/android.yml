@@ -62,7 +62,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        api: [23, 25, 30, 34]
+        api: [26, 30, 34]
 
     steps:
       - name: Check out
