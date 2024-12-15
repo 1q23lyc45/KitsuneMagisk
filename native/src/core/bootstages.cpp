@@ -100,7 +100,6 @@ string find_preinit_device() {
         UNKNOWN,
         CACHE,
         METADATA,
-        PERSIST,
         DATA,
     };
 
@@ -150,12 +149,6 @@ string find_preinit_device() {
                 }
                 [[fallthrough]];
             case METADATA:
-                if (info.target == "/persist" || info.target == "/mnt/vendor/persist") {
-                    matched = PERSIST;
-                    break;
-                }
-                [[fallthrough]];
-            case PERSIST:
                 if (info.target == "/data") {
                     if (!encrypted || access("/data/unencrypted", F_OK) == 0) {
                         matched = DATA;
