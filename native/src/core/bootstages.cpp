@@ -98,7 +98,6 @@ static void setup_mounts() {
 string find_preinit_device() {
     enum part_t {
         UNKNOWN,
-        PERSIST,
         METADATA,
         CACHE,
         DATA,
@@ -138,12 +137,6 @@ string find_preinit_device() {
         part_t &matched = (info.type == "f2fs") ? f2fs_type : ext4_type;
         switch (matched) {
             case UNKNOWN:
-                if (info.target == "/persist" || info.target == "/mnt/vendor/persist") {
-                    matched = PERSIST;
-                    break;
-                }
-                [[fallthrough]];
-            case PERSIST:
                 if (info.target == "/metadata") {
                     matched = METADATA;
                     break;
