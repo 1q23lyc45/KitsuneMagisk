@@ -2,7 +2,7 @@ package com.topjohnwu.magisk.core.tasks
 
 import android.net.Uri
 import androidx.core.net.toFile
-import com.topjohnwu.magisk.core.AppContext
+import com.topjohnwu.magisk.core.di.AppContext
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.ktx.writeTo
 import com.topjohnwu.magisk.core.utils.MediaStoreUtils.displayName
