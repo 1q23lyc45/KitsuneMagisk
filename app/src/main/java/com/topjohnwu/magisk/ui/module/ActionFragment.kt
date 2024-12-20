@@ -16,7 +16,6 @@ import com.topjohnwu.magisk.arch.viewModel
 import com.topjohnwu.magisk.databinding.FragmentActionMd2Binding
 import com.topjohnwu.magisk.ui.flash.FlashViewModel
 import timber.log.Timber
-import com.topjohnwu.magisk.core.R as CoreR
 
 class ActionFragment : BaseFragment<FragmentActionMd2Binding>(), MenuProvider {
 
@@ -41,9 +40,9 @@ class ActionFragment : BaseFragment<FragmentActionMd2Binding>(), MenuProvider {
         viewModel.state.observe(this) {
             activity?.supportActionBar?.setSubtitle(
                 when (it) {
-                    ActionViewModel.State.RUNNING -> CoreR.string.running
-                    ActionViewModel.State.SUCCESS -> CoreR.string.done
-                    ActionViewModel.State.FAILED -> CoreR.string.failure
+                    ActionViewModel.State.RUNNING -> R.string.running
+                    ActionViewModel.State.SUCCESS -> R.string.done
+                    ActionViewModel.State.FAILED -> R.string.failure
                 }
             )
             if (it != ActionViewModel.State.RUNNING) {
