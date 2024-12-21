@@ -52,7 +52,7 @@ class ActionFragment : BaseFragment<FragmentActionMd2Binding>(), MenuProvider {
                     activity?.apply {
                         toast(
                             getString(
-                                com.topjohnwu.magisk.core.R.string.done_action,
+                                com.topjohnwu.magisk.R.string.done_action,
                                 this@ActionFragment.viewModel.args.name
                             ), Toast.LENGTH_LONG
                         )
