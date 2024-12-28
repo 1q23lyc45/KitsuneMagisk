@@ -31,7 +31,7 @@ LOCAL_MODULE := libcompat
 LOCAL_SRC_FILES := compat/compat.cpp
 # Fix static variables' ctor/dtor when using LTO
 # See: https://github.com/android/ndk/issues/1461
-LOCAL_EXPORT_LDFLAGS := -static -T src/lto_fix.lds -Wl,--wrap=rename -Wl,--wrap=renameat
+LOCAL_EXPORT_LDFLAGS := -static -Wl,--wrap=rename -Wl,--wrap=renameat
 # For some reason, using the hacky libc.a with x86 will trigger stack protection violation
 # when mixing Rust and C++ code. Disable stack protector to bypass this issue.
 ifeq ($(TARGET_ARCH), x86)
