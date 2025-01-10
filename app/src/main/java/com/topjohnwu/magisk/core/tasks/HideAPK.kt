@@ -62,6 +62,7 @@ object HideAPK {
             val idx = random.nextInt(len - 2)
             builder[idx + 1] = '.'
         }
+        builder.insert(0, "com.")
         return builder.toString()
     }
 
